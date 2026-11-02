@@ -1,0 +1,64 @@
+# Durcissement commun aux trois conteneurs
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  restart: unless-stopped
+
+x-healthcheck: &healthcheck
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+  interval: 10s
+  timeout: 3s
+  retries: 5
+  start_period: 5s
+
+services:
+  users:
+    build: ./users
+    image: eshop-users:local
+    <<: *hardening
+    healthcheck: *healthcheck
+    # Aucun port publié : joignable uniquement sur le réseau backend
+    networks:
+      - backend
+
+  orders:
+    build: ./orders
+    image: eshop-orders:local
+    <<: *hardening
+    healthcheck: *healthcheck
+    # Aucun port publié : joignable uniquement sur le réseau backend
+    networks:
+      - backend
+
+  gateway:
+    build: ./gateway
+    image: eshop-gateway:local
+    <<: *hardening
+    healthcheck: *healthcheck
+    environment:
+      USERS_SERVICE: http://users:8000
+      ORDERS_SERVICE: http://orders:8000
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN:?GATEWAY_TOKEN doit être défini dans .env}
+    ports:
+      # Seul point d'entrée, lié à la boucle locale
+      - "127.0.0.1:3000:8000"
+    depends_on:
+      users:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+
+networks:
+  # Réseau interne à Docker : aucune sortie vers l'extérieur
+  backend:
+    internal: true
+  # Réseau nécessaire pour publier le port de la Gateway
+  frontend:
