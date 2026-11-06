@@ -1,15 +1,12 @@
 FROM python:3.12-slim
 
-# Pas de fichiers .pyc (système de fichiers en lecture seule) et logs non bufferisés
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Utilisateur non privilégié
 RUN groupadd --system app && useradd --system --gid app --no-create-home app
 
-# Dépendances installées sans conserver le cache pip
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

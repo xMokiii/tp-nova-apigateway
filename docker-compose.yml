@@ -1,5 +1,4 @@
-# Durcissement commun aux trois conteneurs
-x-hardening: &hardening
+x-security: &security
   read_only: true
   tmpfs:
     - /tmp
@@ -20,32 +19,29 @@ services:
   users:
     build: ./users
     image: eshop-users:local
-    <<: *hardening
+    <<: *security
     healthcheck: *healthcheck
-    # Aucun port publié : joignable uniquement sur le réseau backend
     networks:
       - backend
 
   orders:
     build: ./orders
     image: eshop-orders:local
-    <<: *hardening
+    <<: *security
     healthcheck: *healthcheck
-    # Aucun port publié : joignable uniquement sur le réseau backend
     networks:
       - backend
 
   gateway:
     build: ./gateway
     image: eshop-gateway:local
-    <<: *hardening
+    <<: *security
     healthcheck: *healthcheck
     environment:
       USERS_SERVICE: http://users:8000
       ORDERS_SERVICE: http://orders:8000
-      GATEWAY_TOKEN: ${GATEWAY_TOKEN:?GATEWAY_TOKEN doit être défini dans .env}
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN:?GATEWAY_TOKEN manquant}
     ports:
-      # Seul point d'entrée, lié à la boucle locale
       - "127.0.0.1:3000:8000"
     depends_on:
       users:
@@ -57,8 +53,6 @@ services:
       - backend
 
 networks:
-  # Réseau interne à Docker : aucune sortie vers l'extérieur
   backend:
     internal: true
-  # Réseau nécessaire pour publier le port de la Gateway
   frontend:
